@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICU Bedside Calculator — Teaching Demo</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --ink: #1c2530;
+    --muted: #5d6b7a;
+    --line: #dde3ea;
+    --accent: #1f6feb;
+    --ok-bg: #e8f5ee;  --ok-ink: #1b6b3a;
+    --warn-bg: #fff4e0; --warn-ink: #8a5300;
+    --bad-bg: #fdecec; --bad-ink: #a21c1c;
+    --info-bg: #eef3fb; --info-ink: #2a4a7a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  .banner {
+    background: #b42318;
+    color: #fff;
+    text-align: center;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    border-bottom: 4px solid #7a140d;
+  }
+  .banner small { display: block; font-weight: 400; opacity: 0.92; margin-top: 2px; }
+  header { max-width: 1100px; margin: 24px auto 8px; padding: 0 20px; }
+  h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  main {
+    max-width: 1100px;
+    margin: 16px auto 40px;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(20, 30, 40, 0.05);
+    display: flex;
+    flex-direction: column;
+  }
+  .card h2 { margin: 0 0 4px; font-size: 1.15rem; }
+  .card .sub { margin: 0 0 14px; color: var(--muted); font-size: 0.88rem; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .field { flex: 1 1 130px; display: flex; flex-direction: column; }
+  label { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+  input[type="text"], select {
+    font: inherit;
+    font-size: 1rem;
+    padding: 9px 10px;
+    border: 1px solid #c4ccd6;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+  }
+  input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.18);
+  }
+  input.invalid { border-color: var(--bad-ink); background: #fffafa; }
+  .seg { display: inline-flex; border: 1px solid #c4ccd6; border-radius: 8px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label {
+    margin: 0; padding: 9px 14px; cursor: pointer; font-weight: 500;
+    font-size: 0.95rem; border-right: 1px solid #c4ccd6; user-select: none;
+  }
+  .seg label:last-of-type { border-right: none; }
+  .seg input:checked + label { background: var(--accent); color: #fff; }
+  .seg input:focus-visible + label { box-shadow: inset 0 0 0 2px #0b3d91; }
+  .result {
+    border-radius: 10px;
+    padding: 14px;
+    background: #f7f9fb;
+    border: 1px solid var(--line);
+    min-height: 74px;
+  }
+  .placeholder { color: var(--muted); font-style: italic; }
+  .big { font-size: 1.7rem; font-weight: 700; }
+  .unit { font-size: 0.95rem; font-weight: 500; color: var(--muted); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .tile { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px; text-align: center; }
+  .tile .k { font-size: 0.78rem; color: var(--muted); }
+  .tile .v { font-size: 1.2rem; font-weight: 700; }
+  .tile.hi { border-color: var(--accent); background: #f3f7ff; }
+  .pill {
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    font-weight: 700; font-size: 0.9rem; margin-top: 8px;
+  }
+  .ok   { background: var(--ok-bg);   color: var(--ok-ink); }
+  .warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .bad  { background: var(--bad-bg);  color: var(--bad-ink); }
+  .info { background: var(--info-bg); color: var(--info-ink); }
+  .msg { border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; }
+  .msg + .msg { margin-top: 6px; }
+  .note { font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+  .hidden { display: none !important; }
+  footer { max-width: 1100px; margin: 0 auto 30px; padding: 0 20px; color: var(--muted); font-size: 0.8rem; }
+  .reset {
+    align-self: flex-start; margin-top: 10px; font: inherit; font-size: 0.82rem;
+    background: none; border: none; color: var(--accent); cursor: pointer; padding: 0;
+  }
+  .reset:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="banner" role="alert">
+  ⚠ TEACHING DEMO — NOT FOR CLINICAL USE
+  <small>Do not use these numbers for patient care. Always verify with institutional protocols, pharmacy, and a validated clinical tool.</small>
+</div>
+
+<header>
+  <h1>ICU Bedside Calculator</h1>
+  <p>Results update as you type. Nothing is saved or sent anywhere — everything runs in this file.</p>
+</header>
+
+<main>
+
+  <!-- 1. Tidal volume -->
+  <section class="card" id="card-vt">
+    <h2>1 · Lung-protective tidal volume</h2>
+    <p class="sub">ARDSNet predicted body weight (PBW) and Vt at 4, 6 and 8 mL/kg PBW</p>
+    <div class="row">
+      <div class="field" style="flex:0 0 auto">
+        <label>Sex</label>
+        <div class="seg" role="radiogroup" aria-label="Sex">
+          <input type="radio" name="vt-sex" id="vt-m" value="M" checked><label for="vt-m">Male</label>
+          <input type="radio" name="vt-sex" id="vt-f" value="F"><label for="vt-f">Female</label>
+        </div>
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <label>Height unit</label>
+        <div class="seg" role="radiogroup" aria-label="Height unit">
+          <input type="radio" name="vt-unit" id="vt-cm" value="cm" checked><label for="vt-cm">cm</label>
+          <input type="radio" name="vt-unit" id="vt-in" value="in"><label for="vt-in">inches</label>
+          <input type="radio" name="vt-unit" id="vt-ftin" value="ftin"><label for="vt-ftin">ft + in</label>
+        </div>
+      </div>
+    </div>
+    <div class="row" id="vt-single-row">
+      <div class="field">
+        <label for="vt-height">Height (<span id="vt-unit-label">cm</span>)</label>
+        <input type="text" id="vt-height" inputmode="decimal" autocomplete="off" placeholder="e.g. 175">
+      </div>
+    </div>
+    <div class="row hidden" id="vt-ftin-row">
+      <div class="field">
+        <label for="vt-ft">Feet</label>
+        <input type="text" id="vt-ft" inputmode="decimal" autocomplete="off" placeholder="e.g. 5">
+      </div>
+      <div class="field">
+        <label for="vt-inch">Inches</label>
+        <input type="text" id="vt-inch" inputmode="decimal" autocomplete="off" placeholder="e.g. 9">
+      </div>
+    </div>
+    <div class="result" id="vt-out" aria-live="polite"></div>
+    <p class="note">PBW (kg): male = 50 + 0.91 × (height cm − 152.4); female = 45.5 + 0.91 × (height cm − 152.4).</p>
+    <button class="reset" data-reset="vt-height,vt-ft,vt-inch">Clear</button>
+  </section>
+
+  <!-- 2. P/F ratio -->
+  <section class="card" id="card-pf">
+    <h2>2 · P/F ratio</h2>
+    <p class="sub">PaO₂ / FiO₂ with Berlin ARDS oxygenation category</p>
+    <div class="row">
+      <div class="field">
+        <label for="pf-pao2">PaO₂ (mmHg)</label>
+        <input type="text" id="pf-pao2" inputmode="decimal" autocomplete="off" placeholder="e.g. 80">
+      </div>
+      <div class="field">
+        <label for="pf-fio2">FiO₂ (50 or 0.5)</label>
+        <input type="text" id="pf-fio2" inputmode="decimal" autocomplete="off" placeholder="e.g. 50 or 0.5">
+      </div>
+    </div>
+    <div class="result" id="pf-out" aria-live="polite"></div>
+    <p class="note">Berlin categories (on PEEP or CPAP ≥ 5 cmH₂O): mild 200–300 · moderate 100–200 · severe ≤ 100.
+      The ratio alone does not diagnose ARDS. Berlin also needs onset within 1 week, bilateral opacities, and edema not fully explained by cardiac failure or fluid overload.</p>
+    <button class="reset" data-reset="pf-pao2,pf-fio2">Clear</button>
+  </section>
+
+  <!-- 3. MAP -->
+  <section class="card" id="card-map">
+    <h2>3 · Mean arterial pressure</h2>
+    <p class="sub">MAP ≈ DBP + ⅓ (SBP − DBP)</p>
+    <div class="row">
+      <div class="field">
+        <label for="map-sbp">Systolic BP (mmHg)</label>
+        <input type="text" id="map-sbp" inputmode="decimal" autocomplete="off" placeholder="e.g. 110">
+      </div>
+      <div class="field">
+        <label for="map-dbp">Diastolic BP (mmHg)</label>
+        <input type="text" id="map-dbp" inputmode="decimal" autocomplete="off" placeholder="e.g. 60">
+      </div>
+    </div>
+    <div class="result" id="map-out" aria-live="polite"></div>
+    <p class="note">This is an estimate. An arterial line reports MAP directly, and that value is more accurate.</p>
+    <button class="reset" data-reset="map-sbp,map-dbp">Clear</button>
+  </section>
+
+  <!-- 4. Infusion -->
+  <section class="card" id="card-inf">
+    <h2>4 · Infusion rate</h2>
+    <p class="sub">Converts a dose to a pump rate in mL/hr</p>
+    <div class="row">
+      <div class="field" style="flex:0 0 auto">
+        <label>Dose unit</label>
+        <div class="seg" role="radiogroup" aria-label="Dose unit">
+          <input type="radio" name="inf-unit" id="inf-kg" value="kg" checked><label for="inf-kg">mcg/kg/min</label>
+          <input type="radio" name="inf-unit" id="inf-min" value="min"><label for="inf-min">mcg/min</label>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="inf-dose">Dose (<span id="inf-dose-label">mcg/kg/min</span>)</label>
+        <input type="text" id="inf-dose" inputmode="decimal" autocomplete="off" placeholder="e.g. 0.1">
+      </div>
+      <div class="field" id="inf-weight-wrap">
+        <label for="inf-weight">Weight (kg)</label>
+        <input type="text" id="inf-weight" inputmode="decimal" autocomplete="off" placeholder="e.g. 80">
+      </div>
+      <div class="field">
+        <label for="inf-conc">Concentration (mcg/mL)</label>
+        <input type="text" id="inf-conc" inputmode="decimal" autocomplete="off" placeholder="e.g. 16">
+      </div>
+    </div>
+    <div class="result" id="inf-out" aria-live="polite"></div>
+    <p class="note">Rate (mL/hr) = dose (mcg/min) × 60 ÷ concentration (mcg/mL). For mcg/kg/min the dose is first multiplied by weight.
+      Example: 4 mg norepinephrine in 250 mL = 16 mcg/mL.</p>
+    <button class="reset" data-reset="inf-dose,inf-weight,inf-conc">Clear</button>
+  </section>
+
+</main>
+
+<footer>
+  Teaching demo only. Formulas: ARDSNet (NEJM 2000) PBW; Berlin Definition (JAMA 2012); standard MAP estimate; standard weight-based infusion arithmetic.
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- helpers ----------
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Parse a typed number. Returns {empty:true} | {error:"..."} | {value:Number}
+  function parseNum(raw, name) {
+    var s = String(raw).trim().replace(",", ".");
+    if (s === "") return { empty: true };
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) {
+      return { error: name + " should be a plain number (digits and an optional decimal point)." };
+    }
+    var v = parseFloat(s);
+    if (!isFinite(v)) return { error: name + " doesn't look like a valid number." };
+    return { value: v };
+  }
+
+  function fmt(n, dp) {
+    var p = Math.pow(10, dp);
+    var r = Math.round(n * p) / p;
+    return r.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: dp });
+  }
+
+  function msg(cls, text) { return '<div class="msg ' + cls + '">' + text + '</div>'; }
+  function placeholder(text) { return '<span class="placeholder">' + text + '</span>'; }
+
+  function mark(input, bad) { input.classList.toggle("invalid", !!bad); }
+
+  function radioVal(name) {
+    var el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : null;
+  }
+
+  // ---------- 1. Tidal volume ----------
+  function calcVT() {
+    var out = $("vt-out");
+    var input = $("vt-height");
+    var sex = radioVal("vt-sex");
+    var unit = radioVal("vt-unit");
+    var ftin = unit === "ftin";
+    $("vt-single-row").classList.toggle("hidden", ftin);
+    $("vt-ftin-row").classList.toggle("hidden", !ftin);
+    $("vt-unit-label").textContent = unit === "cm" ? "cm" : "inches";
+    input.placeholder = unit === "cm" ? "e.g. 175" : "e.g. 69";
+
+    var cm;
+    if (ftin) {
+      var inFt = $("vt-ft"), inIn = $("vt-inch");
+      var ft = parseNum(inFt.value, "Feet");
+      var inch = parseNum(inIn.value, "Inches");
+      var errs = [];
+      mark(inFt, false); mark(inIn, false);
+      if (ft.error) { errs.push(ft.error); mark(inFt, true); }
+      else if (!ft.empty && (ft.value < 3 || ft.value > 8 || ft.value % 1 !== 0)) {
+        errs.push("Feet should be a whole number from 3 to 8."); mark(inFt, true);
+      }
+      if (inch.error) { errs.push(inch.error); mark(inIn, true); }
+      else if (!inch.empty && (inch.value < 0 || inch.value >= 12)) {
+        errs.push("Inches should be from 0 to 11.9. For 12 or more, add a foot instead."); mark(inIn, true);
+      }
+      if (errs.length) { out.innerHTML = errs.map(function (e) { return msg("bad", e); }).join(""); return; }
+      if (ft.empty) { out.innerHTML = placeholder("Enter feet and inches to see PBW and tidal volumes."); return; }
+      var totalIn = ft.value * 12 + (inch.empty ? 0 : inch.value);
+      cm = totalIn * 2.54;
+      if (cm < 120 || cm > 250) {
+        mark(inFt, true); mark(inIn, true);
+        out.innerHTML = msg("bad", "That height looks impossible for an adult. Please enter between 3 ft 11 in and 8 ft 2 in.");
+        return;
+      }
+    } else {
+      var h = parseNum(input.value, "Height");
+      if (h.empty) { mark(input, false); out.innerHTML = placeholder("Enter a height to see PBW and tidal volumes."); return; }
+      if (h.error) { mark(input, true); out.innerHTML = msg("bad", h.error); return; }
+      cm = unit === "cm" ? h.value : h.value * 2.54;
+    }
+    // Plausible adult range: 120–250 cm (≈ 47–98 in)
+    if (!ftin && (cm < 120 || cm > 250)) {
+      mark(input, true);
+      var range = unit === "cm" ? "120–250 cm" : "47–98 inches";
+      var hint = "";
+      if (unit === "cm" && h.value >= 47 && h.value <= 98) hint = " Did you mean inches? Switch the unit above.";
+      if (unit === "in" && h.value >= 120 && h.value <= 250) hint = " Did you mean cm? Switch the unit above.";
+      out.innerHTML = msg("bad", "That height looks impossible for an adult. Please enter " + range + "." + hint);
+      return;
+    }
+    mark(input, false);
+
+    var base = sex === "M" ? 50 : 45.5;
+    var pbw = base + 0.91 * (cm - 152.4);
+
+    var html =
+      '<div>Predicted body weight</div>' +
+      '<div class="big">' + fmt(pbw, 1) + ' <span class="unit">kg</span></div>' +
+      (unit !== "cm" ? '<div class="note" style="margin-top:2px">Height ' + fmt(cm, 1) + ' cm</div>' : '') +
+      '<div class="grid3">' +
+        '<div class="tile"><div class="k">4 mL/kg</div><div class="v">' + Math.round(pbw * 4) + '</div><div class="k">mL</div></div>' +
+        '<div class="tile hi"><div class="k">6 mL/kg</div><div class="v">' + Math.round(pbw * 6) + '</div><div class="k">mL</div></div>' +
+        '<div class="tile"><div class="k">8 mL/kg</div><div class="v">' + Math.round(pbw * 8) + '</div><div class="k">mL</div></div>' +
+      '</div>';
+    if (cm < 152.4) {
+      html += '<div class="msg info" style="margin-top:10px">Height is below 152.4 cm (5 ft). The ARDSNet formula is less well validated at this height.</div>';
+    }
+    out.innerHTML = html;
+  }
+
+  // ---------- 2. P/F ratio ----------
+  function calcPF() {
+    var out = $("pf-out");
+    var inP = $("pf-pao2"), inF = $("pf-fio2");
+    var p = parseNum(inP.value, "PaO₂");
+    var f = parseNum(inF.value, "FiO₂");
+    var errors = [];
+    var pOK = false, fOK = false, fio2 = null;
+
+    if (p.error) { errors.push(p.error); mark(inP, true); }
+    else if (!p.empty) {
+      if (p.value < 20 || p.value > 700) { errors.push("PaO₂ should be between 20 and 700 mmHg."); mark(inP, true); }
+      else { pOK = true; mark(inP, false); }
+    } else mark(inP, false);
+
+    if (f.error) { errors.push(f.error); mark(inF, true); }
+    else if (!f.empty) {
+      var v = f.value;
+      if (v > 0 && v <= 1) fio2 = v;               // fraction, e.g. 0.5 or 1
+      else if (v >= 21 && v <= 100) fio2 = v / 100; // percent, e.g. 50
+      if (fio2 === null || fio2 < 0.21) {
+        errors.push("FiO₂ must be 21–100 % (e.g. 50) or 0.21–1.0 (e.g. 0.5). Room air is 21 % / 0.21.");
+        mark(inF, true);
+      } else { fOK = true; mark(inF, false); }
+    } else mark(inF, false);
+
+    if (errors.length) { out.innerHTML = errors.map(function (e) { return msg("bad", e); }).join(""); return; }
+    if (!pOK || !fOK) { out.innerHTML = placeholder("Enter PaO₂ and FiO₂ to see the ratio."); return; }
+
+    var ratio = p.value / fio2;
+    var cat, cls;
+    if (ratio > 300)       { cat = "Above 300: does not meet Berlin ARDS oxygenation criteria"; cls = "ok"; }
+    else if (ratio > 200)  { cat = "Mild ARDS range (200 < P/F ≤ 300)"; cls = "warn"; }
+    else if (ratio > 100)  { cat = "Moderate ARDS range (100 < P/F ≤ 200)"; cls = "bad"; }
+    else                   { cat = "Severe ARDS range (P/F ≤ 100)"; cls = "bad"; }
+
+    out.innerHTML =
+      '<div>P/F ratio</div>' +
+      '<div class="big">' + Math.round(ratio) + ' <span class="unit">mmHg</span></div>' +
+      '<div class="note" style="margin-top:2px">FiO₂ used: ' + fmt(fio2, 2) + ' (' + fmt(fio2 * 100, 0) + ' %)</div>' +
+      '<span class="pill ' + cls + '">' + cat + '</span>';
+  }
+
+  // ---------- 3. MAP ----------
+  function calcMAP() {
+    var out = $("map-out");
+    var inS = $("map-sbp"), inD = $("map-dbp");
+    var s = parseNum(inS.value, "Systolic BP");
+    var d = parseNum(inD.value, "Diastolic BP");
+    var errors = [];
+    var sOK = false, dOK = false;
+
+    if (s.error) { errors.push(s.error); mark(inS, true); }
+    else if (!s.empty) {
+      if (s.value < 30 || s.value > 300) { errors.push("Systolic BP should be between 30 and 300 mmHg."); mark(inS, true); }
+      else { sOK = true; mark(inS, false); }
+    } else mark(inS, false);
+
+    if (d.error) { errors.push(d.error); mark(inD, true); }
+    else if (!d.empty) {
+      if (d.value < 10 || d.value > 200) { errors.push("Diastolic BP should be between 10 and 200 mmHg."); mark(inD, true); }
+      else { dOK = true; mark(inD, false); }
+    } else mark(inD, false);
+
+    if (sOK && dOK && d.value >= s.value) {
+      errors.push("Diastolic BP must be lower than systolic BP. Check whether the two values are swapped.");
+      mark(inS, true); mark(inD, true);
+    }
+
+    if (errors.length) { out.innerHTML = errors.map(function (e) { return msg("bad", e); }).join(""); return; }
+    if (!sOK || !dOK) { out.innerHTML = placeholder("Enter systolic and diastolic BP to see MAP."); return; }
+
+    var map = d.value + (s.value - d.value) / 3;
+    var low = map < 65;
+    out.innerHTML =
+      '<div>Mean arterial pressure</div>' +
+      '<div class="big">' + Math.round(map) + ' <span class="unit">mmHg</span></div>' +
+      (low
+        ? '<span class="pill bad">⚠ MAP below 65 mmHg</span>'
+        : '<span class="pill ok">MAP ≥ 65 mmHg</span>');
+  }
+
+  // ---------- 4. Infusion ----------
+  function calcINF() {
+    var out = $("inf-out");
+    var perKg = radioVal("inf-unit") === "kg";
+    $("inf-dose-label").textContent = perKg ? "mcg/kg/min" : "mcg/min";
+    $("inf-dose").placeholder = perKg ? "e.g. 0.1" : "e.g. 10";
+    $("inf-weight-wrap").classList.toggle("hidden", !perKg);
+
+    var inD = $("inf-dose"), inW = $("inf-weight"), inC = $("inf-conc");
+    var dose = parseNum(inD.value, "Dose");
+    var wt = parseNum(inW.value, "Weight");
+    var conc = parseNum(inC.value, "Concentration");
+    var errors = [];
+    var dOK = false, wOK = !perKg, cOK = false;
+
+    if (dose.error) { errors.push(dose.error); mark(inD, true); }
+    else if (!dose.empty) {
+      var maxDose = perKg ? 1000 : 100000;
+      if (dose.value <= 0) { errors.push("Dose must be greater than zero."); mark(inD, true); }
+      else if (dose.value > maxDose) { errors.push("That dose is implausibly high. Check the units (max " + maxDose.toLocaleString() + " " + (perKg ? "mcg/kg/min" : "mcg/min") + ")."); mark(inD, true); }
+      else { dOK = true; mark(inD, false); }
+    } else mark(inD, false);
+
+    if (perKg) {
+      if (wt.error) { errors.push(wt.error); mark(inW, true); }
+      else if (!wt.empty) {
+        if (wt.value < 1 || wt.value > 400) { errors.push("Weight should be between 1 and 400 kg."); mark(inW, true); }
+        else { wOK = true; mark(inW, false); }
+      } else mark(inW, false);
+    } else mark(inW, false);
+
+    if (conc.error) { errors.push(conc.error); mark(inC, true); }
+    else if (!conc.empty) {
+      if (conc.value <= 0) { errors.push("Concentration must be greater than zero."); mark(inC, true); }
+      else if (conc.value > 100000) { errors.push("That concentration is implausibly high. Check that it is in mcg/mL (1 mg/mL = 1,000 mcg/mL)."); mark(inC, true); }
+      else { cOK = true; mark(inC, false); }
+    } else mark(inC, false);
+
+    if (errors.length) { out.innerHTML = errors.map(function (e) { return msg("bad", e); }).join(""); return; }
+    if (!dOK || !wOK || !cOK) {
+      out.innerHTML = placeholder(perKg ? "Enter dose, weight and concentration to see the pump rate." : "Enter dose and concentration to see the pump rate.");
+      return;
+    }
+
+    var mcgPerMin = perKg ? dose.value * wt.value : dose.value;
+    var rate = mcgPerMin * 60 / conc.value;
+    var html =
+      '<div>Pump rate</div>' +
+      '<div class="big">' + fmt(rate, rate < 10 ? 2 : 1) + ' <span class="unit">mL/hr</span></div>' +
+      '<div class="note" style="margin-top:2px">= ' + fmt(mcgPerMin, 2) + ' mcg/min' +
+      (perKg ? ' (' + fmt(dose.value, 3) + ' mcg/kg/min × ' + fmt(wt.value, 1) + ' kg)' : '') + '</div>';
+    if (rate > 500) html += '<div class="msg warn" style="margin-top:8px">The rate is very high (&gt; 500 mL/hr). Check the units and the concentration.</div>';
+    else if (rate < 0.1) html += '<div class="msg warn" style="margin-top:8px">The rate is very low (&lt; 0.1 mL/hr). Many pumps can\'t deliver this accurately. Consider a more dilute concentration.</div>';
+    out.innerHTML = html;
+  }
+
+  // ---------- wiring ----------
+  function bind(ids, fn) {
+    ids.forEach(function (id) {
+      var el = $(id);
+      el.addEventListener("input", fn);
+      el.addEventListener("change", fn);
+    });
+  }
+  function bindRadios(name, fn) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function (el) {
+      el.addEventListener("change", fn);
+    });
+  }
+
+  bind(["vt-height", "vt-ft", "vt-inch"], calcVT); bindRadios("vt-sex", calcVT); bindRadios("vt-unit", calcVT);
+  bind(["pf-pao2", "pf-fio2"], calcPF);
+  bind(["map-sbp", "map-dbp"], calcMAP);
+  bind(["inf-dose", "inf-weight", "inf-conc"], calcINF); bindRadios("inf-unit", calcINF);
+
+  var all = { "vt-height": calcVT, "vt-ft": calcVT, "vt-inch": calcVT, "pf-pao2": calcPF, "pf-fio2": calcPF, "map-sbp": calcMAP, "map-dbp": calcMAP,
+              "inf-dose": calcINF, "inf-weight": calcINF, "inf-conc": calcINF };
+  document.querySelectorAll("[data-reset]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var ids = btn.getAttribute("data-reset").split(",");
+      ids.forEach(function (id) { $(id).value = ""; });
+      all[ids[0]]();
+      $(ids[0]).focus();
+    });
+  });
+
+  calcVT(); calcPF(); calcMAP(); calcINF();
+
+  // expose for testing
+  window.__icuCalc = { parseNum: parseNum };
+})();
+</script>
+</body>
+</html>
